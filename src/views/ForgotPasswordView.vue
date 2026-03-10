@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from 'vue'
-import { useAuthStore } from '../stores/auth'
+import { useStore } from '@/stores'
 
-const auth = useAuthStore()
+const store = useStore()
 const email = ref('')
 const error = ref('')
 const success = ref('')
@@ -13,7 +13,7 @@ async function submit() {
   success.value = ''
   loading.value = true
   try {
-    const res = await auth.forgotPassword(email.value)
+    const res = await store.forgotPassword(email.value)
     success.value = res.message ?? 'Reset link sent. Check your email.'
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Something went wrong.'
@@ -54,8 +54,6 @@ async function submit() {
     </div>
   </div>
 </template>
-
-
 
 <style scoped>
 @import '../assets/auth.css';

@@ -1,52 +1,45 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import axios from 'axios'
+import { useStore } from '@/stores'
 
-const route     = useRoute()
-const API       = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
-const job       = ref(null)
-const loadingJob= ref(true)
-const submitting= ref(false)
-const error     = ref('')
-const result    = ref(null)
-const form      = ref({ candidate_name: '', candidate_email: '', resume_summary: '' })
+const route  = useRoute()
+const store  = useStore()
+const result = ref(null)
+const error  = ref('')
+const form   = ref({ candidate_name: '', candidate_email: '', resume_summary: '' })
 
 const locClass     = (loc) => { const l = (loc ?? '').toLowerCase(); if (l === 'remote') return 'loc-remote'; if (l.includes('dar')) return 'loc-dar'; return 'loc-other' }
 const formatSalary = (v) => Number(v).toLocaleString()
 
 async function submit() {
   error.value = ''
-  submitting.value = true
   try {
-    const { data } = await axios.post(`${API}/apply`, { ...form.value, job_id: route.params.id })
+    const data = await store.applyJob({ ...form.value, job_id: route.params.id })
     result.value = data.data
   } catch (e) {
     const errs = e.response?.data?.errors
     error.value = errs ? Object.values(errs).flat().join(' ') : (e.response?.data?.message ?? 'Submission failed.')
-  } finally { submitting.value = false }
+  }
 }
 
-onMounted(async () => {
-  try { const { data } = await axios.get(`${API}/jobs/${route.params.id}`); job.value = data.data ?? data }
-  catch {} finally { loadingJob.value = false }
-})
+onMounted(() => store.fetchJob(route.params.id))
 </script>
 
 <template>
   <div class="apply-page">
     <RouterLink to="/jobs" class="back">← Back to Jobs</RouterLink>
 
-    <div v-if="loadingJob" class="loading">Loading job…</div>
+    <div v-if="store.loading" class="loading">Loading job…</div>
 
-    <div v-else-if="job">
+    <div v-else-if="store.job">
       <!-- Job header -->
       <div class="job-header">
-        <span class="dept">{{ job.department }}</span>
-        <h1>{{ job.title }}</h1>
+        <span class="dept">{{ store.job.department }}</span>
+        <h1>{{ store.job.title }}</h1>
         <div class="meta">
-          <span class="loc-badge" :class="locClass(job.location)">📍 {{ job.location }}</span>
-          <span class="salary-tag">💰 Tsh {{ formatSalary(job.salary) }}</span>
+          <span class="loc-badge" :class="locClass(store.job.location)">📍 {{ store.job.location }}</span>
+          <span class="salary-tag">💰 Tsh {{ formatSalary(store.job.salary) }}</span>
         </div>
       </div>
 
@@ -54,7 +47,7 @@ onMounted(async () => {
       <div v-if="result" class="result-card">
         <h2>✅ Application Submitted!</h2>
         <table class="result-table">
-          <tr><th>Candidate Name</th>     <td>{{ result.candidate_name }}</td></tr>
+          <tr><th>Candidate Name</th>      <td>{{ result.candidate_name }}</td></tr>
           <tr><th>Position Applied For</th><td>{{ result.position }}</td></tr>
           <tr><th>Resume Score</th>        <td>{{ result.resume_score }} / 10</td></tr>
           <tr><th>Location Priority</th>   <td>+{{ result.location_priority }} pts</td></tr>
@@ -85,15 +78,13 @@ onMounted(async () => {
           <small>{{ form.resume_summary.length }} chars</small>
         </div>
 
-        <button class="btn btn-primary btn-lg" :disabled="submitting" @click="submit">
-          {{ submitting ? 'Submitting…' : 'Submit Application' }}
+        <button class="btn btn-primary btn-lg" :disabled="store.loading" @click="submit">
+          {{ store.loading ? 'Submitting…' : 'Submit Application' }}
         </button>
       </div>
     </div>
   </div>
 </template>
-
-
 
 <style scoped>
 .apply-page { max-width: 760px; margin: 0 auto; }

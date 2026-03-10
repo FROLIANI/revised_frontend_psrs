@@ -1,22 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
-import { useAuthStore } from '../stores/auth'
+import { useStore } from '@/stores'
 
-const auth = useAuthStore()
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
-
-const jobs = ref([])
-const loading = ref(true)
-const search = ref('')
+const store     = useStore()
+const search    = ref('')
 const locFilter = ref('')
 const showModal = ref(false)
-const saving = ref(false)
-const formErr = ref('')
-const newJob = ref({ title: '', department: '', location: '', salary: '', description: '' })
+const newJob    = ref({ title: '', department: '', location: '', salary: '', description: '' })
 
 const filteredJobs = computed(() => {
-  let list = jobs.value
+  let list = store.jobs
   if (search.value) {
     const q = search.value.toLowerCase()
     list = list.filter(
@@ -24,7 +17,7 @@ const filteredJobs = computed(() => {
     )
   }
   if (locFilter.value === 'remote') list = list.filter((j) => j.location.toLowerCase() === 'remote')
-  if (locFilter.value === 'dar') list = list.filter((j) => j.location.toLowerCase().includes('dar'))
+  if (locFilter.value === 'dar')    list = list.filter((j) => j.location.toLowerCase().includes('dar'))
   if (locFilter.value === 'other')
     list = list.filter(
       (j) =>
@@ -33,49 +26,30 @@ const filteredJobs = computed(() => {
   return list
 })
 
-const locClass = (loc) => {
+const locClass     = (loc) => {
   const l = loc.toLowerCase()
-  if (l === 'remote') return 'loc-remote'
+  if (l === 'remote')    return 'loc-remote'
   if (l.includes('dar')) return 'loc-dar'
   return 'loc-other'
 }
 const formatSalary = (v) => Number(v).toLocaleString()
 
-async function fetchJobs() {
-  loading.value = true
-  try {
-    const { data } = await axios.get(`${API}/jobs`)
-    jobs.value = data.data ?? data
-  } catch {
-  } finally {
-    loading.value = false
-  }
-}
-
 async function addJob() {
-  formErr.value = ''
-  saving.value = true
   try {
-    await axios.post(`${API}/jobs`, newJob.value)
+    await store.createJob(newJob.value)
     showModal.value = false
-    newJob.value = { title: '', department: '', location: '', salary: '', description: '' }
-    await fetchJobs()
-  } catch (e) {
-    const errs = e.response?.data?.errors
-    formErr.value = errs ? Object.values(errs).flat().join(' ') : 'Failed to add job.'
-  } finally {
-    saving.value = false
-  }
+    newJob.value    = { title: '', department: '', location: '', salary: '', description: '' }
+  } catch {}
 }
 
-onMounted(fetchJobs)
+onMounted(() => store.fetchJobs())
 </script>
 
 <template>
   <div>
     <div class="page-header">
       <h1 class="page-title">Job Listings</h1>
-      <button v-if="auth.isEditor" class="btn btn-primary" @click="showModal = true">
+      <button v-if="store.isEditor" class="btn btn-primary" @click="showModal = true">
         + Add Job
       </button>
     </div>
@@ -90,7 +64,7 @@ onMounted(fetchJobs)
       </select>
     </div>
 
-    <div v-if="loading" class="loading">Loading job listings…</div>
+    <div v-if="store.loading" class="loading">Loading job listings…</div>
 
     <div v-else class="jobs-grid">
       <div v-for="job in filteredJobs" :key="job.id" class="job-card">
@@ -102,27 +76,27 @@ onMounted(fetchJobs)
         <p class="salary">Tsh {{ formatSalary(job.salary) }}</p>
         <p class="meta">{{ job.applications_count ?? 0 }} applicants</p>
         <div class="card-actions">
-          <RouterLink :to="`/jobs/${job.id}`" class="btn btn-outline">Details</RouterLink>
+          <RouterLink :to="`/jobs/${job.id}`"  class="btn btn-outline">Details</RouterLink>
           <RouterLink :to="`/apply/${job.id}`" class="btn btn-primary">Apply Now</RouterLink>
         </div>
       </div>
     </div>
 
-    <p v-if="!loading && filteredJobs.length === 0" class="empty">No jobs found.</p>
+    <p v-if="!store.loading && filteredJobs.length === 0" class="empty">No jobs found.</p>
 
     <!-- Add Job Modal -->
     <div v-if="showModal" class="overlay" @click.self="showModal = false">
       <div class="modal">
         <h2>Add New Job</h2>
-        <div v-if="formErr" class="alert alert-error">{{ formErr }}</div>
+        <div v-if="store.error" class="alert alert-error">{{ store.error }}</div>
 
         <div class="form-group"><label>Title *</label><input v-model="newJob.title" /></div>
         <div class="form-group">
           <label>Department *</label><input v-model="newJob.department" />
         </div>
         <div class="form-group">
-          <label>Location *</label
-          ><input v-model="newJob.location" placeholder="Remote / Dar Es Salaam / Other" />
+          <label>Location *</label>
+          <input v-model="newJob.location" placeholder="Remote / Dar Es Salaam / Other" />
         </div>
         <div class="form-group">
           <label>Salary (Tsh) *</label><input v-model="newJob.salary" type="number" />
@@ -133,16 +107,14 @@ onMounted(fetchJobs)
 
         <div class="modal-footer">
           <button class="btn btn-outline" @click="showModal = false">Cancel</button>
-          <button class="btn btn-primary" :disabled="saving" @click="addJob">
-            {{ saving ? 'Saving…' : 'Save Job' }}
+          <button class="btn btn-primary" :disabled="store.loading" @click="addJob">
+            {{ store.loading ? 'Saving…' : 'Save Job' }}
           </button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
-
 
 <style scoped>
 .page-header {

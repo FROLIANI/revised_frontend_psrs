@@ -1,61 +1,45 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import { useAuthStore } from '../stores/auth'
+import { onMounted } from 'vue'
+import { useStore } from '@/stores'
 
-const auth  = useAuthStore()
-const API   = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
-const stats = ref({ activeJobs: 0, total: 0, pending: 0, accepted: 0 })
+const store = useStore()
 
 onMounted(async () => {
-  try {
-    const [jobsRes, appsRes] = await Promise.all([
-      axios.get(`${API}/jobs`),
-      auth.isEditor ? axios.get(`${API}/applications`) : Promise.resolve({ data: { data: [] } }),
-    ])
-    const apps = appsRes.data?.data ?? []
-    stats.value = {
-      activeJobs: jobsRes.data?.total ?? 0,
-      total:      appsRes.data?.total ?? apps.length,
-      pending:    apps.filter(a => a.status === 'pending').length,
-      accepted:   apps.filter(a => a.status === 'accepted').length,
-    }
-  } catch {}
+  await store.fetchJobs()
+  if (store.isEditor) await store.fetchApplications()
 })
 </script>
 
 <template>
   <div>
     <h1 class="page-title">Dashboard</h1>
-    <p class="welcome">Welcome back, <strong>{{ auth.user?.name }}</strong> 👋</p>
+    <p class="welcome">Welcome back, <strong>{{ store.user?.name }}</strong> 👋</p>
 
     <div class="stats-grid">
       <div class="stat-card blue">
         <span class="stat-icon">💼</span>
-        <div><span class="stat-num">{{ stats.activeJobs }}</span><span class="stat-lbl">Active Jobs</span></div>
+        <div><span class="stat-num">{{ store.jobs.length }}</span><span class="stat-lbl">Active Jobs</span></div>
       </div>
       <div class="stat-card green">
         <span class="stat-icon">📋</span>
-        <div><span class="stat-num">{{ stats.total }}</span><span class="stat-lbl">Applications</span></div>
+        <div><span class="stat-num">{{ store.totalApplications }}</span><span class="stat-lbl">Applications</span></div>
       </div>
       <div class="stat-card orange">
         <span class="stat-icon">⏳</span>
-        <div><span class="stat-num">{{ stats.pending }}</span><span class="stat-lbl">Pending</span></div>
+        <div><span class="stat-num">{{ store.pendingApplications }}</span><span class="stat-lbl">Pending</span></div>
       </div>
       <div class="stat-card purple">
         <span class="stat-icon">✅</span>
-        <div><span class="stat-num">{{ stats.accepted }}</span><span class="stat-lbl">Accepted</span></div>
+        <div><span class="stat-num">{{ store.acceptedApplications }}</span><span class="stat-lbl">Accepted</span></div>
       </div>
     </div>
 
     <div class="actions">
       <RouterLink to="/jobs" class="action-card">🔍 Browse Jobs</RouterLink>
-      <RouterLink v-if="auth.isEditor" to="/admin/applications" class="action-card">📊 Review Applications</RouterLink>
+      <RouterLink v-if="store.isEditor" to="/admin/applications" class="action-card">📊 Review Applications</RouterLink>
     </div>
   </div>
 </template>
-
-
 
 <style scoped>
 .page-title { font-size: 1.8rem; color: #1a3c5e; margin-bottom: 4px; }

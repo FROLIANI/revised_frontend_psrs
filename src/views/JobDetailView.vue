@@ -1,17 +1,15 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import axios from 'axios'
+import { useStore } from '@/stores'
 
-const route   = useRoute()
-const API     = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
-const job     = ref(null)
-const loading = ref(true)
+const route = useRoute()
+const store = useStore()
 
 const priority = computed(() => {
-  if (!job.value) return 0
-  const l = job.value.location.toLowerCase()
-  if (l === 'remote') return 3
+  if (!store.job) return 0
+  const l = store.job.location.toLowerCase()
+  if (l === 'remote')    return 3
   if (l.includes('dar')) return 2
   return 1
 })
@@ -19,26 +17,23 @@ const priority = computed(() => {
 const locClass     = (loc) => { const l = loc.toLowerCase(); if (l === 'remote') return 'loc-remote'; if (l.includes('dar')) return 'loc-dar'; return 'loc-other' }
 const formatSalary = (v) => Number(v).toLocaleString()
 
-onMounted(async () => {
-  try { const { data } = await axios.get(`${API}/jobs/${route.params.id}`); job.value = data.data ?? data }
-  catch {} finally { loading.value = false }
-})
+onMounted(() => store.fetchJob(route.params.id))
 </script>
 
 <template>
   <div class="detail-page">
     <RouterLink to="/jobs" class="back">← Back to Jobs</RouterLink>
 
-    <div v-if="loading" class="loading">Loading…</div>
+    <div v-if="store.loading" class="loading">Loading…</div>
 
-    <div v-else-if="job" class="card">
+    <div v-else-if="store.job" class="card">
       <div class="header">
         <div>
-          <span class="dept">{{ job.department }}</span>
-          <h1>{{ job.title }}</h1>
+          <span class="dept">{{ store.job.department }}</span>
+          <h1>{{ store.job.title }}</h1>
           <div class="meta">
-            <span class="loc-badge" :class="locClass(job.location)">📍 {{ job.location }}</span>
-            <span class="salary-tag">💰 Tsh {{ formatSalary(job.salary) }}</span>
+            <span class="loc-badge" :class="locClass(store.job.location)">📍 {{ store.job.location }}</span>
+            <span class="salary-tag">💰 Tsh {{ formatSalary(store.job.salary) }}</span>
           </div>
         </div>
         <div class="priority-box">
@@ -47,26 +42,24 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="job.description" class="section">
+      <div v-if="store.job.description" class="section">
         <h3>Job Description</h3>
-        <p>{{ job.description }}</p>
+        <p>{{ store.job.description }}</p>
       </div>
 
       <div class="section">
         <h3>How Scoring Works</h3>
         <ul>
           <li>📄 Resume Quality Score — 1 to 10 points</li>
-          <li>📍 Location Priority — +{{ priority }} points ({{ job.location }})</li>
+          <li>📍 Location Priority — +{{ priority }} points ({{ store.job.location }})</li>
           <li>🏆 Final Score = Resume Score + Location Priority</li>
         </ul>
       </div>
 
-      <RouterLink :to="`/apply/${job.id}`" class="btn btn-primary">Apply for this Position →</RouterLink>
+      <RouterLink :to="`/apply/${store.job.id}`" class="btn btn-primary">Apply for this Position →</RouterLink>
     </div>
   </div>
 </template>
-
-
 
 <style scoped>
 .detail-page { max-width: 780px; margin: 0 auto; }

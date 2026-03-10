@@ -1,12 +1,12 @@
 <script setup>
-import { useAuthStore } from '../stores/auth'
+import { useStore } from '@/stores'
 import { useRouter } from 'vue-router'
 
-const auth = useAuthStore()
+const store  = useStore()
 const router = useRouter()
 
 async function handleLogout() {
-  await auth.logout()
+  await store.logout()
   router.push('/login')
 }
 </script>
@@ -21,18 +21,16 @@ async function handleLogout() {
     <div class="nav-links">
       <RouterLink to="/dashboard">Dashboard</RouterLink>
       <RouterLink to="/jobs">Job Listings</RouterLink>
-      <RouterLink v-if="auth.isEditor" to="/admin/applications">Applications</RouterLink>
+      <RouterLink v-if="store.isEditor" to="/admin/applications">Applications</RouterLink>
     </div>
 
     <div class="nav-user">
-      <span class="badge" :class="auth.user?.role">{{ auth.user?.role }}</span>
-      <span class="nav-name">{{ auth.user?.name }}</span>
+      <span class="badge" :class="store.user?.role">{{ store.user?.role }}</span>
+      <span class="nav-name">{{ store.user?.name }}</span>
       <button class="btn-logout" @click="handleLogout">Logout</button>
     </div>
   </nav>
 </template>
-
-
 
 <style scoped>
 .navbar {

@@ -1,20 +1,18 @@
 <script setup>
-import { useAuthStore } from './stores/auth'
+import { useStore } from '@/stores'
 import Navbar from '@/components/Navbar.vue'
 
-const auth = useAuthStore()
+const store = useStore()
 </script>
 
 <template>
   <div id="app">
-    <Navbar v-if="auth.isLoggedIn" />
-    <main class="main-content" :class="{ 'with-nav': auth.isLoggedIn }">
+    <Navbar v-if="store.isLoggedIn" />
+    <main class="main-content" :class="{ 'with-nav': store.isLoggedIn }">
       <RouterView />
     </main>
   </div>
 </template>
-
-
 
 <style>
 * {

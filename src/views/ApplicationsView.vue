@@ -1,30 +1,27 @@
-
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import { useStore } from '@/stores'
 
-const API          = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
-const applications = ref([])
-const loading      = ref(true)
+const store        = useStore()
 const search       = ref('')
 const statusFilter = ref('')
 
-const summaryStats = computed(() => {
-  const a = applications.value
-  return [
-    { label: 'Total',    count: a.length,                                     color: '#1a3c5e' },
-    { label: 'Pending',  count: a.filter(x => x.status === 'pending').length,  color: '#e67e22' },
-    { label: 'Reviewed', count: a.filter(x => x.status === 'reviewed').length, color: '#2980b9' },
-    { label: 'Accepted', count: a.filter(x => x.status === 'accepted').length, color: '#27ae60' },
-    { label: 'Rejected', count: a.filter(x => x.status === 'rejected').length, color: '#e74c3c' },
-  ]
-})
+const summaryStats = computed(() => [
+  { label: 'Total',    count: store.totalApplications,    color: '#1a3c5e' },
+  { label: 'Pending',  count: store.pendingApplications,  color: '#e67e22' },
+  { label: 'Reviewed', count: store.reviewedApplications, color: '#2980b9' },
+  { label: 'Accepted', count: store.acceptedApplications, color: '#27ae60' },
+  { label: 'Rejected', count: store.rejectedApplications, color: '#e74c3c' },
+])
 
 const filtered = computed(() => {
-  let list = applications.value
+  let list = store.applications
   if (search.value) {
     const q = search.value.toLowerCase()
-    list = list.filter(a => a.candidate_name.toLowerCase().includes(q) || (a.job?.title ?? '').toLowerCase().includes(q))
+    list = list.filter(a =>
+      a.candidate_name.toLowerCase().includes(q) ||
+      (a.job?.title ?? '').toLowerCase().includes(q)
+    )
   }
   if (statusFilter.value) list = list.filter(a => a.status === statusFilter.value)
   return list
@@ -32,25 +29,19 @@ const filtered = computed(() => {
 
 const locClass = (loc) => { const l = (loc ?? '').toLowerCase(); if (l === 'remote') return 'loc-remote'; if (l.includes('dar')) return 'loc-dar'; return 'loc-other' }
 
-async function fetchApps() {
-  loading.value = true
-  try { const { data } = await axios.get(`${API}/applications`); applications.value = data.data ?? data }
-  catch {} finally { loading.value = false }
-}
-
 async function updateStatus(app, val) {
-  try { await axios.patch(`${API}/applications/${app.id}/status`, { status: val }); app.status = val }
-  catch { alert('Failed to update.') }
+  try {
+    await store.updateApplicationStatus(app.id, val)
+  } catch { alert('Failed to update.') }
 }
 
 async function reEval(app) {
   try {
-    const { data } = await axios.post(`${API}/applications/${app.id}/evaluate`)
-    Object.assign(app, { resume_score: data.data.resume_score, location_priority: data.data.location_priority, final_score: data.data.final_score, status: data.data.status })
+    await store.evaluateApplication(app.id)
   } catch { alert('Re-evaluation failed.') }
 }
 
-onMounted(fetchApps)
+onMounted(() => store.fetchApplications())
 </script>
 
 <template>
@@ -77,7 +68,7 @@ onMounted(fetchApps)
       </select>
     </div>
 
-    <div v-if="loading" class="loading">Loading applications…</div>
+    <div v-if="store.loading" class="loading">Loading applications…</div>
 
     <div v-else-if="filtered.length">
       <table class="app-table">
@@ -116,7 +107,6 @@ onMounted(fetchApps)
     <p v-else class="empty">No applications found.</p>
   </div>
 </template>
-
 
 <style scoped>
 .page-title  { font-size: 1.8rem; color: #1a3c5e; margin-bottom: 20px; }

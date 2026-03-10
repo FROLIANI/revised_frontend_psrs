@@ -1,19 +1,19 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { useStore } from '@/stores'
 
-const auth = useAuthStore()
-const router = useRouter()
-const form = ref({ email: '', password: '' })
-const error = ref('')
+const store   = useStore()
+const router  = useRouter()
+const form    = ref({ email: '', password: '' })
+const error   = ref('')
 const loading = ref(false)
 
 async function handleLogin() {
-  error.value = ''
+  error.value   = ''
   loading.value = true
   try {
-    await auth.login(form.value)
+    await store.login(form.value)
     router.push('/dashboard')
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Login failed. Please try again.'
@@ -65,8 +65,6 @@ async function handleLogin() {
     </div>
   </div>
 </template>
-
-
 
 <style scoped>
 @import '../assets/auth.css';
